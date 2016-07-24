@@ -1,6 +1,9 @@
 # device present global variables
 
 Lightning_Mode = False
+SolarPower_Mode = False
+
+SunAirPlus_Present = False
 AS3935_Present = False
 DS3231_Present = False
 BMP280_Present = False

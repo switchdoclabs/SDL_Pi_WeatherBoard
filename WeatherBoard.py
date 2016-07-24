@@ -22,9 +22,12 @@ import subprocess
 import RPi.GPIO as GPIO
 
 
+sys.path.append('./SDL_Pi_SSD1306')
+sys.path.append('./SDL_Pi_INA3221')
 sys.path.append('./RTC_SDL_DS3231')
 sys.path.append('./Adafruit_Python_BMP')
 sys.path.append('./Adafruit_Python_GPIO')
+sys.path.append('./Adafruit_Python_SSD1306')
 sys.path.append('./SDL_Pi_WeatherRack')
 sys.path.append('./SDL_Pi_FRAM')
 sys.path.append('./SDL_Pi_TCA9545')
@@ -37,6 +40,8 @@ import SDL_Pi_WeatherRack as SDL_Pi_WeatherRack
 
 import SDL_Pi_FRAM
 from RPi_AS3935 import RPi_AS3935
+
+import SDL_Pi_INA3221
 
 
 import SDL_Pi_TCA9545
@@ -71,8 +76,12 @@ import Scroll_SSD1306
 
 as3935_Interrupt_Happened = False;
 # set to true if you are building the Weather Board project with Lightning Sensor
-config.Lightning_Mode = False
+config.Lightning_Mode = True
 
+# set to true if you are building the solar powered version
+config.SolarPower_Mode = True;
+
+config.SunAirPlus_Present = False
 config.AS3935_Present = False
 config.DS3231_Present = False
 config.BMP280_Present = False
@@ -101,6 +110,9 @@ def returnStatusLine(device, state):
 	else:
 		returnString = returnString + ":   \t\tNot Present"
 	return returnString
+
+
+
 
 
 ###############   
@@ -287,6 +299,29 @@ try:
 except:
 	config.FRAM_Present = False
 
+###############   
+
+# set up SunAirPlus
+
+
+if (config.SolarPower_Mode == True):
+	
+	try:
+    		# switch to BUS2 -  SunAirPlus is on Bus2
+    		tca9545.write_control_register(TCA9545_CONFIG_BUS2)
+    		sunAirPlus = SDL_Pi_INA3221.SDL_Pi_INA3221(addr=0x40)
+		# the three channels of the INA3221 named for SunAirPlus Solar Power Controller channels (www.switchdoc.com)
+		LIPO_BATTERY_CHANNEL = 1
+		SOLAR_CELL_CHANNEL   = 2
+		OUTPUT_CHANNEL       = 3
+
+	  	busvoltage1 = sunAirPlus.getBusVoltage_V(LIPO_BATTERY_CHANNEL)
+		config.SunAirPlus_Present = True
+	except:
+		config.SunAirPlus_Present = False
+
+    	tca9545.write_control_register(TCA9545_CONFIG_BUS0)
+
 ###############
 
 # Detect AM2315 
@@ -308,7 +343,7 @@ except:
 
 
 # Main Loop - sleeps 10 seconds
-# Tests all I2C devices on Weather Board 
+# Tests all I2C and WeatherRack devices on Weather Board 
 
 
 # Main Program
@@ -333,6 +368,7 @@ print returnStatusLine("ADS1015",config.ADS1015_Present)
 print returnStatusLine("ADS1115",config.ADS1115_Present)
 print returnStatusLine("AS3935",config.AS3935_Present)
 print returnStatusLine("OLED",config.OLED_Present)
+print returnStatusLine("SunAirPlus",config.SunAirPlus_Present)
 print "----------------------"
 
 
@@ -487,7 +523,7 @@ while True:
 	
 	print "----------------- "
 	if (config.FRAM_Present):
-		print " FRAM Test"
+		print " FRAM Present"
 	else:
 		print " FRAM Not Present"
 	print "----------------- "
@@ -505,6 +541,69 @@ while True:
                 	print "address = %i value = %i" %(x, fram.read8(x))
         print "----------------- "
 	print
+	print "----------------- "
+
+	if (config.SunAirPlus_Present):
+		print " SunAirPlus Present"
+	else:
+		print " SunAirPlus Not Present"
+	print "----------------- "
+
+	if (config.SolarPower_Mode):
+		if (config.SunAirPlus_Present):
+    			tca9545.write_control_register(TCA9545_CONFIG_BUS2)
+		      	shuntvoltage1 = 0
+        		busvoltage1   = 0
+        		current_mA1   = 0
+        		loadvoltage1  = 0
+
+
+        		busvoltage1 = sunAirPlus.getBusVoltage_V(LIPO_BATTERY_CHANNEL)
+        		shuntvoltage1 = sunAirPlus.getShuntVoltage_mV(LIPO_BATTERY_CHANNEL)
+        		# minus is to get the "sense" right.   - means the battery is charging, + that it is discharging
+        		current_mA1 = sunAirPlus.getCurrent_mA(LIPO_BATTERY_CHANNEL)
+
+        		loadvoltage1 = busvoltage1 + (shuntvoltage1 / 1000)
+		
+        		print "LIPO_Battery Bus Voltage: %3.2f V " % busvoltage1
+        		print "LIPO_Battery Shunt Voltage: %3.2f mV " % shuntvoltage1
+        		print "LIPO_Battery Load Voltage:  %3.2f V" % loadvoltage1
+        		print "LIPO_Battery Current 1:  %3.2f mA" % current_mA1
+        		print
+
+        		shuntvoltage2 = 0
+        		busvoltage2 = 0
+        		current_mA2 = 0
+        		loadvoltage2 = 0
+
+        		busvoltage2 = sunAirPlus.getBusVoltage_V(SOLAR_CELL_CHANNEL)
+        		shuntvoltage2 = sunAirPlus.getShuntVoltage_mV(SOLAR_CELL_CHANNEL)
+        		current_mA2 = -sunAirPlus.getCurrent_mA(SOLAR_CELL_CHANNEL)
+        		loadvoltage2 = busvoltage2 + (shuntvoltage2 / 1000)
+
+        		print "Solar Cell Bus Voltage 2:  %3.2f V " % busvoltage2
+        		print "Solar Cell Shunt Voltage 2: %3.2f mV " % shuntvoltage2
+        		print "Solar Cell Load Voltage 2:  %3.2f V" % loadvoltage2
+        		print "Solar Cell Current 2:  %3.2f mA" % current_mA2
+        		print
+
+        		shuntvoltage3 = 0
+        		busvoltage3 = 0
+        		current_mA3 = 0
+        		loadvoltage3 = 0
+
+        		busvoltage3 = sunAirPlus.getBusVoltage_V(OUTPUT_CHANNEL)
+        		shuntvoltage3 = sunAirPlus.getShuntVoltage_mV(OUTPUT_CHANNEL)
+        		current_mA3 = sunAirPlus.getCurrent_mA(OUTPUT_CHANNEL)
+        		loadvoltage3 = busvoltage3 + (shuntvoltage3 / 1000)
+
+        		print "Output Bus Voltage 3:  %3.2f V " % busvoltage3
+        		print "Output Shunt Voltage 3: %3.2f mV " % shuntvoltage3
+        		print "Output Load Voltage 3:  %3.2f V" % loadvoltage3
+        		print "Output Current 3:  %3.2f mA" % current_mA3
+        		print
+    			tca9545.write_control_register(TCA9545_CONFIG_BUS1)
+						
 
 
 	print "Sleeping 10 seconds"

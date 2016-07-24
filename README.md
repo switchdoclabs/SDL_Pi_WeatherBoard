@@ -2,8 +2,8 @@ Weather Board Libraries and Example for Raspberry Pi
 
 Supports SwitchDoc Labs WeatherRack / Argent Data / Sparkfun
 
-Version 1.5 
-July 19, 2016
+Version 1.6 
+July 22, 2016
 
 SwitchDocLabs Documentation for the Weather Board under products on:
 
@@ -13,6 +13,7 @@ Support for all 7 I2C devices supported by the Weather Board
 
 New Support for the SwitchDoc Labs Grove OLED Board
 New Support for the MOD-1016G Grove Lightning Detection Board - www.embeddedadventures.com 
+New Support for SwitchDoc SunAirPlus Solar Power Controller Board
 
 
 -------------------
