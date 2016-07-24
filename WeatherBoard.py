@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # Weather Board Test File
-# Version 1.5 July 19, 2016
+# Version 1.6 July 22, 2016
 #
 # SwitchDoc Labs
 # www.switchdoc.com
@@ -349,7 +349,7 @@ except:
 # Main Program
 
 print ""
-print "Weather Board Demo / Test Version 1.5 - SwitchDoc Labs"
+print "Weather Board Demo / Test Version 1.6 - SwitchDoc Labs"
 print ""
 print ""
 print "Program Started at:"+ time.strftime("%Y-%m-%d %H:%M:%S")
