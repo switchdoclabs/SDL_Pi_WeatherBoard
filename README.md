@@ -2,8 +2,10 @@ Weather Board Libraries and Example for Raspberry Pi
 
 Supports SwitchDoc Labs WeatherRack / Argent Data / Sparkfun
 
-Version 1.6 
-July 22, 2016
+Version 1.7 
+August 4, 2016
+
+August 4, 2016:   Fix for OLED Present under Lightning Conditions
 
 SwitchDocLabs Documentation for the Weather Board under products on:
 
@@ -54,7 +56,8 @@ Modify this section of code to support your configuration:
 
 # set to true if you are building the Weather Board project with Lightning Sensor
 config.Lightning_Mode = False
-
+# set to true if you are building the Solar Powered Weather Board
+config.SolarPower_Mode = False
 All other devices are detected automatically.
 
 ----------------

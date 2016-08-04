@@ -513,9 +513,10 @@ while True:
 		if (as3935LastInterrupt == 0x08):
 			print "Lightning: %s" % as3935LastStatus
 			as3935LightningCount += 1
-			Scroll_SSD1306.addLineOLED(display, '')
-			Scroll_SSD1306.addLineOLED(display, '---LIGHTNING---')
-			Scroll_SSD1306.addLineOLED(display, '')
+			if (config.OLED_Present):
+				Scroll_SSD1306.addLineOLED(display, '')
+				Scroll_SSD1306.addLineOLED(display, '---LIGHTNING---')
+				Scroll_SSD1306.addLineOLED(display, '')
 			as3935LastInterrupt = 0x00
 
 		print "Lightning Count = ", as3935LightningCount
