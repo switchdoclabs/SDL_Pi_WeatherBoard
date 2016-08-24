@@ -2,8 +2,9 @@ Weather Board Libraries and Example for Raspberry Pi
 
 Supports SwitchDoc Labs WeatherRack / Argent Data / Sparkfun
 
-Version 1.7 
-August 4, 2016
+Version 1.8 
+
+August 22, 2016: Added support for WXLink - Wireless connection to WeatherRack and AM2315
 
 August 4, 2016:   Fix for OLED Present under Lightning Conditions
 
@@ -67,3 +68,8 @@ Example Execution
 sudo python WeatherBoard.py
 
 
+----------------
+Programming Note
+----------------
+
+If you attach an AM2315 to the WXLink Transmitter, then the program will assume that is the AM2315 you want for outside temperature and humidity.   These values will overwrite the AM2315 connected to the local Raspberry Pi or Weather Board.

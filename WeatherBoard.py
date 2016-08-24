@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # Weather Board Test File
-# Version 1.6 July 22, 2016
+# Version 1.8 August 22, 2016
 #
 # SwitchDoc Labs
 # www.switchdoc.com
@@ -14,13 +14,14 @@ import sys
 import time
 from datetime import datetime
 import random 
-
+import binascii
+import struct
 
 import config
 
 import subprocess
 import RPi.GPIO as GPIO
-
+import smbus
 
 sys.path.append('./SDL_Pi_SSD1306')
 sys.path.append('./SDL_Pi_INA3221')
@@ -76,10 +77,10 @@ import Scroll_SSD1306
 
 as3935_Interrupt_Happened = False;
 # set to true if you are building the Weather Board project with Lightning Sensor
-config.Lightning_Mode = True
+config.Lightning_Mode = False
 
 # set to true if you are building the solar powered version
-config.SolarPower_Mode = True;
+config.SolarPower_Mode = False;
 
 config.SunAirPlus_Present = False
 config.AS3935_Present = False
@@ -91,7 +92,7 @@ config.AM2315_Present = False
 config.ADS1015_Present = False
 config.ADS1115_Present = False
 config.OLED_Present = False
-
+config.WXLink_Present = False
 
 ###############
 # setup lightning i2c mux
@@ -139,6 +140,17 @@ weatherStation = SDL_Pi_WeatherRack.SDL_Pi_WeatherRack(anemometerPin, rainPin, 0
 
 weatherStation.setWindMode(SDL_MODE_SAMPLE, 5.0)
 #weatherStation.setWindMode(SDL_MODE_DELAY, 5.0)
+
+################
+
+# WXLink Test Setup
+
+WXLink = smbus.SMBus(1)
+try:
+	data = WXLink.read_i2c_block_data(0x08, 0);
+	config.WXLink_Present = True
+except:
+	config.WXLink_Present = False
 
 
 ################
@@ -332,13 +344,22 @@ try:
 		temperature, humidity, crc_check = am2315.sense()
 		print "AM2315 =", temperature
 		config.AM2315_Present = True
+		if (crc_check == -1):
+			config.AM2315_Present = False
 	except:
 		config.AM2315_Present = False
 except:
 	config.AM2315_Present = False
 	print "------> See Readme to install tentacle_pi"
 
+###########
+# WXLink functions
 
+def hex2float(s):
+    return struct.unpack('<f', binascii.unhexlify(s))[0]
+
+def hex2int(s):
+    return struct.unpack('<L', binascii.unhexlify(s))[0]
 
 
 
@@ -369,10 +390,12 @@ print returnStatusLine("ADS1115",config.ADS1115_Present)
 print returnStatusLine("AS3935",config.AS3935_Present)
 print returnStatusLine("OLED",config.OLED_Present)
 print returnStatusLine("SunAirPlus",config.SunAirPlus_Present)
+print returnStatusLine("WXLink",config.WXLink_Present)
 print "----------------------"
 
 
-
+block1 = ""
+block2 = ""
 
 
 
@@ -414,24 +437,113 @@ while True:
 
 	print "----------------- "
 	print " WeatherRack Weather Sensors" 
+ 	if (config.WXLink_Present == True):
+		print " WXLink Remote WeatherRack"
+	else:
+		print " WeatherRack Local"	
 	print "----------------- "
 	#
+	print "----------------- "
+	if (config.AM2315_Present == True):
+		print " AM2315 Temperature/Humidity Sensor"
+	else:
+		print " AM2315 Temperature/Humidity  Sensor Not Present"
+	print "----------------- "
 
- 	currentWindSpeed = weatherStation.current_wind_speed()/1.6
-  	currentWindGust = weatherStation.get_wind_gust()/1.6
-  	totalRain = totalRain + weatherStation.get_current_rain_total()/25.4
-  	print("Rain Total=\t%0.2f in")%(totalRain)
-  	print("Wind Speed=\t%0.2f MPH")%(currentWindSpeed)
-	if (config.OLED_Present):
-		Scroll_SSD1306.addLineOLED(display,  ("Wind Speed=\t%0.2f MPH")%(currentWindSpeed))
-		Scroll_SSD1306.addLineOLED(display,  ("Rain Total=\t%0.2f in")%(totalRain))
+	if (config.AM2315_Present):
+    		temperature, humidity, crc_check = am2315.sense()
+    		print "AM2315 temperature: %0.1f" % temperature
+    		print "AM2315 humidity: %0.1f" % humidity
+    		print "AM2315 crc: %s" % crc_check
+	print "----------------- "
+	print "----------------- "
+
+
+	if (config.WXLink_Present == False):
+	
+ 		currentWindSpeed = weatherStation.current_wind_speed()/1.6
+  		currentWindGust = weatherStation.get_wind_gust()/1.6
+  		totalRain = totalRain + weatherStation.get_current_rain_total()/25.4
+  		print("Rain Total=\t%0.2f in")%(totalRain)
+  		print("Wind Speed=\t%0.2f MPH")%(currentWindSpeed)
+		if (config.OLED_Present):
+			Scroll_SSD1306.addLineOLED(display,  ("Wind Speed=\t%0.2f MPH")%(currentWindSpeed))
+			Scroll_SSD1306.addLineOLED(display,  ("Rain Total=\t%0.2f in")%(totalRain))
   		if (config.ADS1015_Present or config.ADS1115_Present):	
 			Scroll_SSD1306.addLineOLED(display,  "Wind Dir=%0.2f Degrees" % weatherStation.current_wind_direction())
 
-    	print("MPH wind_gust=\t%0.2f MPH")%(currentWindGust)
-  	if (config.ADS1015_Present or config.ADS1115_Present):	
-		print "Wind Direction=\t\t\t %0.2f Degrees" % weatherStation.current_wind_direction()
-		print "Wind Direction Voltage=\t\t %0.3f V" % weatherStation.current_wind_direction_voltage()
+    		print("MPH wind_gust=\t%0.2f MPH")%(currentWindGust)
+  		if (config.ADS1015_Present or config.ADS1115_Present):	
+			print "Wind Direction=\t\t\t %0.2f Degrees" % weatherStation.current_wind_direction()
+			print "Wind Direction Voltage=\t\t %0.3f V" % weatherStation.current_wind_direction_voltage()
+
+	if (config.WXLink_Present == True):
+		oldblock1 = block1
+		oldblock2 = block2	
+		try:
+   			print "-----------"
+   			print "block 1"
+   			block1 = WXLink.read_i2c_block_data(0x08, 0);
+   			print ''.join('{:02x}'.format(x) for x in block1) 
+			block1 = bytearray(block1)
+   			print "block 2"
+   			block2 = WXLink.read_i2c_block_data(0x08, 1);
+   			block2 = bytearray(block2)
+			print ''.join('{:02x}'.format(x) for x in block2) 
+   			print "-----------"
+		except:
+			print "WXLink Read failed - Old Data Kept"
+			block1 = oldblock1
+			block2 = oldblock2
+
+               	currentWindSpeed = struct.unpack('f', str(block1[9:13]))[0]    /1.6
+		
+               	currentWindGust = 0.0   # not implemented in Solar WXLink version
+
+               	totalRain = struct.unpack('l', str(block1[17:21]))[0]/25.4
+
+               	print("Rain Total=\t%0.2f in")%(totalRain)
+               	print("Wind Speed=\t%0.2f MPH")%(currentWindSpeed)
+               	if (config.OLED_Present):
+                       	Scroll_SSD1306.addLineOLED(display,  ("Wind Speed=\t%0.2f MPH")%(currentWindSpeed))
+                       	Scroll_SSD1306.addLineOLED(display,  ("Rain Total=\t%0.2f in")%(totalRain))
+                       	Scroll_SSD1306.addLineOLED(display,  "Wind Dir=%0.2f Degrees" % weatherStation.current_wind_direction())
+
+               	currentWindDirection = struct.unpack('H', str(block1[7:9]))[0] 
+                print "Wind Direction=\t\t\t %i Degrees" % currentWindDirection
+
+		# now do the AM2315 Temperature
+               	temperature = struct.unpack('f', str(block1[25:29]))[0] 
+                elements = [block1[29], block1[30], block1[31], block2[0]]
+        	outHByte = bytearray(elements)
+        	humidity = struct.unpack('f', str(outHByte))[0]
+    		print "AM2315 from WXLink temperature: %0.1f" % temperature
+    		print "AM2315 from WXLink humidity: %0.1f" % humidity
+
+		
+
+		# now read the SunAirPlus Data from WXLink
+
+		batteryVoltage = struct.unpack('f', str(block2[1:5]))[0]
+        	batteryCurrent = struct.unpack('f', str(block2[5:9]))[0]
+        	loadCurrent = struct.unpack('f', str(block2[9:13]))[0]
+        	solarPanelVoltage = struct.unpack('f', str(block2[13:17]))[0]
+        	solarPanelCurrent = struct.unpack('f', str(block2[17:21]))[0]
+
+        	auxA = struct.unpack('f', str(block2[21:25]))[0]
+
+
+        	print "WXLink batteryVoltage = %6.2f" % batteryVoltage
+        	print "WXLink batteryCurrent = %6.2f" % batteryCurrent
+        	print "WXLink loadCurrent = %6.2f" % loadCurrent
+        	print "WXLink solarPanelVoltage = %6.2f" % solarPanelVoltage
+        	print "WXLink solarPanelCurrent = %6.2f" % solarPanelCurrent
+        	print "WXLink auxA = %6.2f" % auxA
+
+		# message ID
+		MessageID = struct.unpack('l', str(block2[25:29]))[0]
+    		print "WXLink Message ID %i" % MessageID
+		
 
 	print "----------------- "
 	print "----------------- "
@@ -450,20 +562,6 @@ while True:
 			Scroll_SSD1306.addLineOLED(display, 'Press= \t{0:0.2f} KPa'.format(bmp280.read_pressure()/1000))
 			if (config.HTU21DF_Present == False):
 				Scroll_SSD1306.addLineOLED(display, 'InTemp= \t{0:0.2f} C'.format(bmp280.read_temperature()))
-	print "----------------- "
-
-	print "----------------- "
-	if (config.AM2315_Present == True):
-		print " AM2315 Temperature/Humidity Sensor"
-	else:
-		print " AM2315 Temperature/Humidity  Sensor Not Present"
-	print "----------------- "
-
-	if (config.AM2315_Present):
-    		temperature, humidity, crc_check = am2315.sense()
-    		print "AM2315 temperature: %0.1f" % temperature
-    		print "AM2315 humidity: %0.1f" % humidity
-    		print "AM2315 crc: %s" % crc_check
 	print "----------------- "
 
 	print "----------------- "
